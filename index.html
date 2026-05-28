@@ -655,10 +655,7 @@ async function getSessions() {
 
 async function saveSession(s) {
   if (db && uid) {
-    const ref = db.collection('users').doc(uid).collection('sessions');
-    const ex  = await ref.where('date','==',s.date).get();
-    if (!ex.empty) await ref.doc(ex.docs[0].id).set(s);
-    else           await ref.add(s);
+    await db.collection('users').doc(uid).collection('sessions').doc(s.date).set(s);
   } else {
     let all = JSON.parse(localStorage.getItem('swimlog') || '[]');
     all = all.filter(x => x.date !== s.date);
@@ -669,8 +666,8 @@ async function saveSession(s) {
 }
 
 async function deleteSession(id, date) {
-  if (db && uid && id) {
-    await db.collection('users').doc(uid).collection('sessions').doc(id).delete();
+  if (db && uid) {
+    await db.collection('users').doc(uid).collection('sessions').doc(date).delete();
   } else {
     const all = JSON.parse(localStorage.getItem('swimlog') || '[]');
     localStorage.setItem('swimlog', JSON.stringify(all.filter(x => x.date !== date)));
