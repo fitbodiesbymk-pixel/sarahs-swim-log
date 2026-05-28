@@ -343,8 +343,21 @@
 </head>
 <body>
 
+<!-- ══ LOADING ══ -->
+<div id="loading-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;">
+    <div style="width:48px;height:48px;background:var(--navy);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+      <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
+        <path d="M3 18c3-5 6-7 9-7s6 6 12 6 6-6 9-6" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="18" cy="9" r="4" fill="white"/>
+      </svg>
+    </div>
+    <p style="color:var(--muted);font-size:0.85rem;font-weight:500;">Loading…</p>
+  </div>
+</div>
+
 <!-- ══ AUTH ══ -->
-<div id="auth-screen">
+<div id="auth-screen" style="display:none;">
   <div class="auth-mark">
     <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
       <path d="M3 18c3-5 6-7 9-7s6 6 12 6 6-6 9-6" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
@@ -564,7 +577,8 @@ if (FB_ON) {
 
 // ── AUTH ───────────────────────────────────────
 function showAuth() {
-  document.getElementById('auth-screen').classList.remove('off');
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
 
@@ -578,12 +592,13 @@ document.getElementById('signin-btn').addEventListener('click', async () => {
 });
 
 document.getElementById('signout-btn').addEventListener('click', () => {
-  if (FB_ON && fbAuth) fbAuth.signOut();
+  if (FB_ON && fbAuth && confirm('Sign out?')) fbAuth.signOut();
 });
 
 function boot(user) {
   uid = user?.uid || null;
-  document.getElementById('auth-screen').classList.add('off');
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('f-date').value = today();
   setGreeting(user);
