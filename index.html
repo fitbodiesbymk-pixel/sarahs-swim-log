@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Sarah's Swim Log</title>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:     #FDE8F0;
+      --white:  #FFFFFF;
+      --border: #F2C4D8;
+      --navy:   #2D1020;
+      --text:   #3D1428;
+      --muted:  #A06080;
+      --accent: #E0457B;
+      --green:  #10B981;
+      --red:    #EF4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── pages ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── top bar ── */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .topbar-inner {
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* ── main ── */
+    main {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 28px 20px 110px;
+    }
+
+    /* ── card ── */
+    .card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 1px 12px rgba(11, 24, 41, 0.07);
+    }
+
+    /* ── section heading inside card ── */
+    .card-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 22px;
+    }
+
+    /* ── field ── */
+    .field { margin-bottom: 20px; }
+    .field:last-of-type { margin-bottom: 0; }
+
+    .field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 1rem;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      appearance: none;
+      -webkit-appearance: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
+      background: var(--white);
+    }
+
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7FA3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      background-color: var(--bg);
+      padding-right: 40px;
+      cursor: pointer;
+    }
+
+    .field select:focus { background-color: var(--white); }
+
+    /* ── distance pills ── */
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .pill {
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+      background: var(--bg);
+      cursor: pointer;
+      transition: all 0.16s;
+      font-family: 'Inter', sans-serif;
+    }
+    .pill.on,
+    .pill:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(14,165,233,0.07);
+    }
+
+    /* ── save button ── */
+    .btn-save {
+      display: block;
+      width: 100%;
+      margin-top: 28px;
+      background: var(--navy);
+      color: var(--white);
+      border: none;
+      border-radius: 14px;
+      padding: 17px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: opacity 0.18s, transform 0.1s;
+    }
+    .btn-save:hover   { opacity: 0.87; }
+    .btn-save:active  { transform: scale(0.99); }
+    .btn-save:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── auth screen ── */
+    #auth-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 28px;
+      text-align: center;
+    }
+    #auth-screen.off { display: none; }
+    .auth-mark {
+      width: 72px; height: 72px;
+      background: var(--navy);
+      border-radius: 22px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .btn-google {
+      display: flex; align-items: center; justify-content: center; gap: 11px;
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 15px 28px;
+      font-size: 0.95rem; font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      width: 100%; max-width: 300px;
+      margin-top: 28px;
+      transition: box-shadow 0.18s;
+      color: var(--text);
+    }
+    .btn-google:hover { box-shadow: 0 2px 12px rgba(11,24,41,0.12); }
+
+    /* ── bottom nav ── */
+    .bnav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      padding-bottom: env(safe-area-inset-bottom);
+      z-index: 30;
+    }
+    .bnav-inner {
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+    }
+    .tab {
+      flex: 1;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 12px 4px;
+      font-size: 0.67rem; font-weight: 600;
+      letter-spacing: 0.03em;
+      color: var(--muted);
+      border: none; background: none;
+      cursor: pointer;
+      transition: color 0.18s;
+    }
+    .tab.active { color: var(--accent); }
+    .tab svg { transition: transform 0.18s; }
+    .tab.active svg { transform: scale(1.1); }
+
+    /* ── toast ── */
+    .toast {
+      position: fixed; bottom: 84px; left: 50%;
+      transform: translateX(-50%);
+      padding: 11px 22px; border-radius: 999px;
+      font-size: 0.87rem; font-weight: 600;
+      color: white; z-index: 100;
+      opacity: 0; transition: opacity 0.28s;
+      pointer-events: none; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ── history ── */
+    .hist-row {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 8px rgba(11,24,41,0.06);
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .del-btn {
+      background: none; border: none;
+      color: #CBD5E1; cursor: pointer;
+      padding: 4px; border-radius: 6px;
+      transition: color 0.18s;
+    }
+    .del-btn:hover { color: var(--red); }
+
+    /* ── stats ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-box {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 1px 8px rgba(11,24,41,0.06);
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 1.9rem; font-weight: 800;
+      color: var(--navy); line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-lbl {
+      font-size: 0.68rem; font-weight: 600;
+      color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    /* ── chart card ── */
+    .chart-card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 22px 20px;
+      box-shadow: 0 1px 12px rgba(11,24,41,0.07);
+      margin-bottom: 16px;
+    }
+    .chart-title {
+      font-size: 0.72rem; font-weight: 700;
+      color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 16px;
+    }
+
+    /* ── period toggle ── */
+    .period {
+      display: flex; background: var(--bg);
+      border-radius: 999px; padding: 3px; gap: 2px;
+      margin-bottom: 20px;
+    }
+    .per-btn {
+      flex: 1; padding: 8px 10px; border-radius: 999px;
+      border: none; background: transparent;
+      color: var(--muted); font-size: 0.78rem; font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer; transition: all 0.18s;
+    }
+    .per-btn.active { background: var(--white); color: var(--navy); box-shadow: 0 1px 4px rgba(11,24,41,0.1); }
+
+    /* ── empty state ── */
+    .empty {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* ── signout ── */
+    #signout-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 0.78rem; font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      padding: 6px 10px; border-radius: 8px;
+      transition: color 0.18s;
+    }
+    #signout-btn:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<!-- ══ AUTH ══ -->
+<div id="auth-screen">
+  <div class="auth-mark">
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+      <path d="M3 18c3-5 6-7 9-7s6 6 12 6 6-6 9-6" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M3 26c3-5 6-7 9-7s6 6 12 6 6-6 9-6" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity=".4"/>
+      <circle cx="18" cy="9" r="5" fill="white"/>
+    </svg>
+  </div>
+  <h1 style="font-size:2rem;font-weight:800;color:var(--navy);letter-spacing:-0.02em;margin-bottom:8px;">Sarah's Swim Log</h1>
+  <p style="color:var(--muted);font-size:0.92rem;max-width:240px;line-height:1.6;">Track every session. See the progress.</p>
+  <p style="color:#CBD5E1;font-size:0.68rem;margin-top:10px;letter-spacing:0.06em;text-transform:uppercase;">by Fitbodies MK</p>
+  <button class="btn-google" id="signin-btn">
+    <svg width="18" height="18" viewBox="0 0 24 24">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    Continue with Google
+  </button>
+  <p id="auth-err" style="color:var(--red);font-size:0.8rem;margin-top:14px;display:none;"></p>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app" style="display:none;">
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div>
+        <p id="greeting" style="font-size:0.72rem;color:var(--muted);font-weight:500;margin-bottom:1px;"></p>
+        <h1 style="font-size:1.15rem;font-weight:800;color:var(--navy);letter-spacing:-0.01em;">Sarah's Swim Log</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="streak-pill" style="display:none;background:#FCE7F3;border:1.5px solid #F9A8D4;border-radius:999px;padding:5px 12px;font-size:0.75rem;font-weight:700;color:#BE185D;"></div>
+        <button id="signout-btn">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- ══ LOG PAGE ══ -->
+    <div id="page-log" class="page active">
+
+      <div class="card">
+        <p class="card-label">Log a Session</p>
+
+        <form id="log-form">
+
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="f-date" required />
+          </div>
+
+          <div class="field">
+            <label>Swim Distance</label>
+            <div class="pills" id="dist-pills">
+              <button type="button" class="pill" data-m="500">500m</button>
+              <button type="button" class="pill" data-m="1000">1km</button>
+              <button type="button" class="pill" data-m="1500">1.5km</button>
+              <button type="button" class="pill" data-m="2000">2km</button>
+              <button type="button" class="pill" data-m="2500">2.5km</button>
+              <button type="button" class="pill" data-m="3000">3km</button>
+              <button type="button" class="pill" data-m="4000">4km</button>
+              <button type="button" class="pill" data-m="5000">5km</button>
+            </div>
+            <input type="number" id="f-dist" placeholder="Or type metres e.g. 2000" min="0" step="50" />
+          </div>
+
+          <div class="field">
+            <label>Avg Heart Rate (bpm)</label>
+            <input type="number" id="f-hr" placeholder="e.g. 145" min="40" max="220" />
+          </div>
+
+          <div class="field">
+            <label>Effort Level</label>
+            <select id="f-effort">
+              <option value="">How hard did it feel?</option>
+              <option value="1">1 — Very Easy</option>
+              <option value="2">2 — Easy</option>
+              <option value="3">3 — Light</option>
+              <option value="4">4 — Moderate</option>
+              <option value="5">5 — Challenging</option>
+              <option value="6">6 — Hard</option>
+              <option value="7">7 — Very Hard</option>
+              <option value="8">8 — Very Hard+</option>
+              <option value="9">9 — Maximal</option>
+              <option value="10">10 — All Out</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn-save" id="save-btn">Save Session</button>
+
+        </form>
+      </div>
+
+    </div><!-- /log -->
+
+    <!-- ══ HISTORY PAGE ══ -->
+    <div id="page-history" class="page">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--navy);">History</h2>
+        <select id="hist-filter" style="background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:7px 32px 7px 12px;font-size:0.78rem;font-weight:500;color:var(--text);font-family:'Inter',sans-serif;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236B7FA3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 12px center;"></select>
+      </div>
+
+      <div id="hist-list"></div>
+
+    </div><!-- /history -->
+
+    <!-- ══ STATS PAGE ══ -->
+    <div id="page-stats" class="page">
+
+      <h2 style="font-size:1.2rem;font-weight:800;color:var(--navy);margin-bottom:20px;">Stats</h2>
+
+      <div class="period" id="period-btns">
+        <button class="per-btn active" data-p="week">Week</button>
+        <button class="per-btn" data-p="month">Month</button>
+        <button class="per-btn" data-p="year">Year</button>
+        <button class="per-btn" data-p="all">All</button>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-box">
+          <p id="st-sessions" class="stat-num">—</p>
+          <p class="stat-lbl">Sessions</p>
+        </div>
+        <div class="stat-box">
+          <p id="st-dist" class="stat-num">—</p>
+          <p class="stat-lbl">Distance</p>
+        </div>
+        <div class="stat-box">
+          <p id="st-avg-dist" class="stat-num">—</p>
+          <p class="stat-lbl">Avg / Session</p>
+        </div>
+        <div class="stat-box">
+          <p id="st-avg-hr" class="stat-num">—</p>
+          <p class="stat-lbl">Avg Heart Rate</p>
+        </div>
+        <div class="stat-box">
+          <p id="st-avg-eff" class="stat-num">—</p>
+          <p class="stat-lbl">Avg Effort</p>
+        </div>
+        <div class="stat-box">
+          <p id="st-best" class="stat-num">—</p>
+          <p class="stat-lbl">Best Session</p>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <p class="chart-title">Distance per session</p>
+        <canvas id="c-dist" height="130"></canvas>
+        <p id="c-dist-nd" style="text-align:center;color:var(--muted);font-size:0.83rem;padding:20px 0;display:none;">Not enough data yet.</p>
+      </div>
+
+      <div class="chart-card">
+        <p class="chart-title">Heart Rate trend</p>
+        <canvas id="c-hr" height="130"></canvas>
+        <p id="c-hr-nd" style="text-align:center;color:var(--muted);font-size:0.83rem;padding:20px 0;display:none;">No heart rate data yet.</p>
+      </div>
+
+      <div class="chart-card">
+        <p class="chart-title">Effort level</p>
+        <canvas id="c-eff" height="130"></canvas>
+        <p id="c-eff-nd" style="text-align:center;color:var(--muted);font-size:0.83rem;padding:20px 0;display:none;">No effort data yet.</p>
+      </div>
+
+    </div><!-- /stats -->
+
+  </main>
+
+  <!-- Bottom nav -->
+  <nav class="bnav">
+    <div class="bnav-inner">
+      <button class="tab active" data-page="log">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Log
+      </button>
+      <button class="tab" data-page="history">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        History
+      </button>
+      <button class="tab" data-page="stats">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Stats
+      </button>
+    </div>
+  </nav>
+
+</div><!-- /app -->
+
+<script>
+// ── FIREBASE CONFIG ─────────────────────────────
+// Replace values from Firebase Console → Project Settings → Your apps
+const FB_CFG = {
+  apiKey:            "REPLACE_ME",
+  authDomain:        "REPLACE_ME.firebaseapp.com",
+  projectId:         "REPLACE_ME",
+  storageBucket:     "REPLACE_ME.appspot.com",
+  messagingSenderId: "REPLACE_ME",
+  appId:             "REPLACE_ME"
+};
+
+const FB_ON = FB_CFG.apiKey !== "REPLACE_ME";
+let db = null, fbAuth = null, uid = null;
+
+if (FB_ON) {
+  firebase.initializeApp(FB_CFG);
+  fbAuth = firebase.auth();
+  db     = firebase.firestore();
+  fbAuth.onAuthStateChanged(u => u ? boot(u) : showAuth());
+} else {
+  boot(null);
+}
+
+// ── AUTH ───────────────────────────────────────
+function showAuth() {
+  document.getElementById('auth-screen').classList.remove('off');
+  document.getElementById('app').style.display = 'none';
+}
+
+document.getElementById('signin-btn').addEventListener('click', async () => {
+  if (!FB_ON) { boot(null); return; }
+  try { await fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch (e) {
+    const el = document.getElementById('auth-err');
+    el.textContent = e.message; el.style.display = 'block';
+  }
+});
+
+document.getElementById('signout-btn').addEventListener('click', () => {
+  if (FB_ON && fbAuth) fbAuth.signOut();
+});
+
+function boot(user) {
+  uid = user?.uid || null;
+  document.getElementById('auth-screen').classList.add('off');
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('f-date').value = today();
+  setGreeting(user);
+}
+
+// ── DATA ───────────────────────────────────────
+async function getSessions() {
+  if (db && uid) {
+    try {
+      const snap = await db.collection('users').doc(uid)
+        .collection('sessions').orderBy('date','asc').get();
+      return snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    } catch { return []; }
+  }
+  return JSON.parse(localStorage.getItem('swimlog') || '[]');
+}
+
+async function saveSession(s) {
+  if (db && uid) {
+    const ref = db.collection('users').doc(uid).collection('sessions');
+    const ex  = await ref.where('date','==',s.date).get();
+    if (!ex.empty) await ref.doc(ex.docs[0].id).set(s);
+    else           await ref.add(s);
+  } else {
+    let all = JSON.parse(localStorage.getItem('swimlog') || '[]');
+    all = all.filter(x => x.date !== s.date);
+    all.push(s);
+    all.sort((a,b) => a.date > b.date ? 1 : -1);
+    localStorage.setItem('swimlog', JSON.stringify(all));
+  }
+}
+
+async function deleteSession(id, date) {
+  if (db && uid && id) {
+    await db.collection('users').doc(uid).collection('sessions').doc(id).delete();
+  } else {
+    const all = JSON.parse(localStorage.getItem('swimlog') || '[]');
+    localStorage.setItem('swimlog', JSON.stringify(all.filter(x => x.date !== date)));
+  }
+}
+
+// ── HELPERS ────────────────────────────────────
+const today   = () => new Date().toISOString().split('T')[0];
+const fmtDate = s  => new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+const fmtShort= s  => new Date(s+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const fmtDist = m  => m >= 1000 ? (m/1000).toFixed(m%1000===0?0:1)+'km' : m+'m';
+
+function wkStart(str) {
+  const d = new Date(str+'T12:00:00'), day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(new Date(d).setDate(diff)).toISOString().split('T')[0];
+}
+
+function periodRange(p) {
+  const now = new Date(), td = today();
+  if (p === 'week')  return { from: wkStart(td), to: td };
+  if (p === 'month') return { from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0], to: td };
+  if (p === 'year')  return { from: new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0], to: td };
+  return { from: '2000-01-01', to: td };
+}
+
+function calcStreak(sessions) {
+  if (!sessions.length) return 0;
+  const dates = [...new Set(sessions.map(s => s.date))].sort().reverse();
+  const td   = today();
+  const yest = (() => { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0]; })();
+  if (dates[0] !== td && dates[0] !== yest) return 0;
+  let streak = 0, check = dates[0];
+  for (const d of dates) {
+    if (d === check) {
+      streak++;
+      const nd = new Date(check+'T12:00:00'); nd.setDate(nd.getDate()-1);
+      check = nd.toISOString().split('T')[0];
+    } else if (d < check) break;
+  }
+  return streak;
+}
+
+function toast(msg, success = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = success ? '#0EA5E9' : '#EF4444';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2300);
+}
+
+function setGreeting(user) {
+  const h = new Date().getHours();
+  const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const name = user?.displayName?.split(' ')[0] || '';
+  document.getElementById('greeting').textContent = g + (name ? ', ' + name : '');
+}
+
+// ── NAV ────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tab').forEach(b  => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('page-' + this.dataset.page).classList.add('active');
+    if (this.dataset.page === 'history') renderHistory();
+    if (this.dataset.page === 'stats')   renderStats();
+  });
+});
+
+// ── LOG FORM ───────────────────────────────────
+document.querySelectorAll('#dist-pills .pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('#dist-pills .pill').forEach(p => p.classList.remove('on'));
+    pill.classList.add('on');
+    document.getElementById('f-dist').value = pill.dataset.m;
+  });
+});
+
+document.getElementById('f-dist').addEventListener('input', function() {
+  document.querySelectorAll('#dist-pills .pill').forEach(p => {
+    p.classList.toggle('on', p.dataset.m === this.value);
+  });
+});
+
+document.getElementById('log-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const dist = parseFloat(document.getElementById('f-dist').value) || null;
+  const hr   = parseFloat(document.getElementById('f-hr').value)   || null;
+  const eff  = parseInt(document.getElementById('f-effort').value) || null;
+  const date = document.getElementById('f-date').value;
+
+  if (!date) { toast('Please pick a date', false); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  try {
+    await saveSession({ date, distance: dist, hr, effort: eff, ts: new Date().toISOString() });
+
+    // update streak badge
+    const all    = await getSessions();
+    const streak = calcStreak(all);
+    const sp     = document.getElementById('streak-pill');
+    if (streak > 1) { sp.style.display = 'block'; sp.textContent = streak + ' day streak 🔥'; }
+    else              sp.style.display = 'none';
+
+    toast('Session saved 🏊');
+    this.reset();
+    document.getElementById('f-date').value = today();
+    document.querySelectorAll('#dist-pills .pill').forEach(p => p.classList.remove('on'));
+  } catch(err) {
+    toast(err.message, false);
+  } finally {
+    btn.textContent = 'Save Session'; btn.disabled = false;
+  }
+});
+
+// ── HISTORY ────────────────────────────────────
+async function renderHistory() {
+  const all = await getSessions();
+  const sessions = [...all].reverse();
+
+  // Build filter
+  const fEl = document.getElementById('hist-filter');
+  const weeks = {};
+  sessions.forEach(s => { weeks[wkStart(s.date)] = true; });
+  const prev = fEl.value;
+  fEl.innerHTML = '<option value="all">All sessions</option>';
+  Object.keys(weeks).sort().reverse().forEach(w => {
+    const o = document.createElement('option');
+    o.value = w; o.textContent = 'Week of ' + fmtShort(w);
+    fEl.appendChild(o);
+  });
+  if (prev) fEl.value = prev;
+
+  const sel      = fEl.value || 'all';
+  const filtered = sel === 'all' ? sessions : sessions.filter(s => wkStart(s.date) === sel);
+  const el       = document.getElementById('hist-list');
+
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty">No sessions yet.<br>Log your first swim above.</div>';
+    return;
+  }
+
+  const effLabel = ['','Very Easy','Easy','Light','Moderate','Challenging','Hard','Very Hard','Very Hard+','Maximal','All Out'];
+
+  el.innerHTML = filtered.map(s => `
+    <div class="hist-row">
+      <div>
+        <p style="font-size:0.88rem;font-weight:700;color:var(--navy);margin-bottom:4px;">${fmtDate(s.date)}</p>
+        <p style="font-size:0.78rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;">
+          ${s.distance ? `<span>${fmtDist(s.distance)}</span>` : ''}
+          ${s.hr       ? `<span>${s.hr} bpm</span>` : ''}
+          ${s.effort   ? `<span>RPE ${s.effort} — ${effLabel[s.effort]||''}</span>` : ''}
+        </p>
+      </div>
+      <button class="del-btn" data-id="${s._id||''}" data-date="${s.date}" title="Delete">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+      </button>
+    </div>`).join('');
+
+  document.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      if (!confirm('Delete session for ' + fmtDate(this.dataset.date) + '?')) return;
+      await deleteSession(this.dataset.id, this.dataset.date);
+      renderHistory();
+      toast('Deleted', false);
+    });
+  });
+}
+
+document.getElementById('hist-filter').addEventListener('change', renderHistory);
+
+// ── STATS ──────────────────────────────────────
+const charts = {};
+let activePeriod = 'week';
+
+document.querySelectorAll('.per-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.per-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    activePeriod = this.dataset.p;
+    renderStats();
+  });
+});
+
+async function renderStats() {
+  const all = await getSessions();
+  const { from, to } = periodRange(activePeriod);
+  const filtered = all.filter(s => s.date >= from && s.date <= to);
+
+  // Summary numbers
+  document.getElementById('st-sessions').textContent = filtered.length || '—';
+  const totDist = filtered.reduce((a,s) => a + (s.distance||0), 0);
+  document.getElementById('st-dist').textContent     = totDist ? fmtDist(totDist) : '—';
+  const withDist = filtered.filter(s => s.distance);
+  document.getElementById('st-avg-dist').textContent = withDist.length
+    ? fmtDist(Math.round(withDist.reduce((a,s) => a + s.distance, 0) / withDist.length)) : '—';
+  const withHR = filtered.filter(s => s.hr);
+  document.getElementById('st-avg-hr').textContent   = withHR.length
+    ? Math.round(withHR.reduce((a,s) => a + s.hr, 0) / withHR.length) + ' bpm' : '—';
+  const withEff = filtered.filter(s => s.effort);
+  document.getElementById('st-avg-eff').textContent  = withEff.length
+    ? (withEff.reduce((a,s) => a + s.effort, 0) / withEff.length).toFixed(1) : '—';
+  const best = withDist.length ? Math.max(...withDist.map(s => s.distance)) : 0;
+  document.getElementById('st-best').textContent     = best ? fmtDist(best) : '—';
+
+  // Chart helpers
+  const lightGray = '#F2F5F9';
+  const muted     = '#6B7FA3';
+  const copts     = (yCb) => ({
+    plugins: { legend:{ display:false }, tooltip:{ backgroundColor:'#fff', titleColor:muted, bodyColor:'#1A2640', borderColor:'#DDE3EE', borderWidth:1 } },
+    scales:  {
+      x: { ticks:{ color:muted, font:{ size:9 } }, grid:{ display:false }, border:{ color:'#DDE3EE' } },
+      y: { ticks:{ color:muted, callback: yCb || (v=>v) }, grid:{ color:'#EEF2F7' }, border:{ color:'#DDE3EE' } }
+    }
+  });
+
+  function drawChart(canvasId, noDataId, type, labels, data, borderCol, bgCol, yCb, extra) {
+    const el = document.getElementById(canvasId);
+    const nd = document.getElementById(noDataId);
+    const min = type === 'line' ? 2 : 1;
+    if (data.length < min) { el.style.display='none'; nd.style.display='block'; return; }
+    nd.style.display='none'; el.style.display='block';
+    if (charts[canvasId]) charts[canvasId].destroy();
+    charts[canvasId] = new Chart(el, {
+      type,
+      data: { labels, datasets: [{
+        data, borderColor: borderCol, backgroundColor: bgCol,
+        borderWidth: type==='bar' ? 1.5 : 2,
+        borderRadius: type==='bar' ? 6 : undefined,
+        borderSkipped: type==='bar' ? false : undefined,
+        pointBackgroundColor: type==='line' ? borderCol : undefined,
+        pointBorderColor:     type==='line' ? '#fff'    : undefined,
+        pointBorderWidth:     type==='line' ? 2         : undefined,
+        pointRadius:          type==='line' ? 4         : undefined,
+        tension: type==='line' ? 0.3 : undefined,
+        fill:    type==='line' ? true : undefined
+      }] },
+      options: { ...copts(yCb), ...(extra||{}) }
+    });
+  }
+
+  drawChart('c-dist','c-dist-nd','bar',
+    withDist.map(s => fmtShort(s.date)), withDist.map(s => s.distance),
+    '#0EA5E9', 'rgba(14,165,233,0.15)', v => fmtDist(v));
+
+  drawChart('c-hr','c-hr-nd','line',
+    withHR.map(s => fmtShort(s.date)), withHR.map(s => s.hr),
+    '#EF4444', 'rgba(239,68,68,0.06)', v => v+' bpm');
+
+  drawChart('c-eff','c-eff-nd','line',
+    withEff.map(s => fmtShort(s.date)), withEff.map(s => s.effort),
+    '#F59E0B', 'rgba(245,158,11,0.06)', v => v,
+    { scales:{ ...copts().scales, y:{ ...copts().scales.y, min:1, max:10, ticks:{ color:muted, stepSize:2 }, grid:{ color:'#EEF2F7' }, border:{ color:'#DDE3EE' } } } });
+}
+</script>
+</body>
+</html>
