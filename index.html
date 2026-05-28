@@ -156,6 +156,37 @@
       background: rgba(14,165,233,0.07);
     }
 
+    /* ── dist row with unit toggle ── */
+    .dist-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .dist-row input { flex: 1; }
+    .unit-toggle {
+      display: flex;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .unit-btn {
+      padding: 0 14px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border: none;
+      background: var(--bg);
+      color: var(--muted);
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.16s;
+    }
+    .unit-btn.on {
+      background: var(--accent);
+      color: #fff;
+    }
+    .unit-btn:first-child { border-right: 1.5px solid var(--border); }
+
     /* ── save button ── */
     .btn-save {
       display: block;
@@ -426,7 +457,13 @@
               <button type="button" class="pill" data-m="4000">4km</button>
               <button type="button" class="pill" data-m="5000">5km</button>
             </div>
-            <input type="number" id="f-dist" placeholder="Or type any distance in metres" min="0" />
+            <div class="dist-row">
+              <input type="text" id="f-dist" inputmode="decimal" placeholder="e.g. 825 or 1.5" />
+              <div class="unit-toggle">
+                <button type="button" class="unit-btn on" id="unit-m">m</button>
+                <button type="button" class="unit-btn" id="unit-km">km</button>
+              </div>
+            </div>
           </div>
 
           <div class="field">
@@ -705,23 +742,52 @@ document.querySelectorAll('.tab').forEach(btn => {
 });
 
 // ── LOG FORM ───────────────────────────────────
+let distUnit = 'm';
+
+function setUnit(u) {
+  distUnit = u;
+  document.getElementById('unit-m').classList.toggle('on', u === 'm');
+  document.getElementById('unit-km').classList.toggle('on', u === 'km');
+}
+
+document.getElementById('unit-m').addEventListener('click',  () => setUnit('m'));
+document.getElementById('unit-km').addEventListener('click', () => setUnit('km'));
+
+function parseDist(raw) {
+  const s = raw.trim().toLowerCase();
+  if (!s) return null;
+  const num = parseFloat(s);
+  if (isNaN(num)) return null;
+  if (s.endsWith('km')) return Math.round(num * 1000);
+  if (s.endsWith('m'))  return Math.round(num);
+  return distUnit === 'km' ? Math.round(num * 1000) : Math.round(num);
+}
+
 document.querySelectorAll('#dist-pills .pill').forEach(pill => {
   pill.addEventListener('click', () => {
     document.querySelectorAll('#dist-pills .pill').forEach(p => p.classList.remove('on'));
     pill.classList.add('on');
-    document.getElementById('f-dist').value = pill.dataset.m;
+    const metres = parseInt(pill.dataset.m);
+    if (metres >= 1000) {
+      document.getElementById('f-dist').value = metres / 1000;
+      setUnit('km');
+    } else {
+      document.getElementById('f-dist').value = metres;
+      setUnit('m');
+    }
   });
 });
 
 document.getElementById('f-dist').addEventListener('input', function() {
+  const metres = parseDist(this.value);
   document.querySelectorAll('#dist-pills .pill').forEach(p => {
-    p.classList.toggle('on', p.dataset.m === this.value);
+    p.classList.toggle('on', metres !== null && parseInt(p.dataset.m) === metres);
   });
 });
 
 document.getElementById('log-form').addEventListener('submit', async function(e) {
   e.preventDefault();
-  const dist = parseFloat(document.getElementById('f-dist').value) || null;
+  const dist = parseDist(document.getElementById('f-dist').value);
   const hr   = parseFloat(document.getElementById('f-hr').value)   || null;
   const eff  = parseInt(document.getElementById('f-effort').value) || null;
   const date = document.getElementById('f-date').value;
@@ -745,6 +811,7 @@ document.getElementById('log-form').addEventListener('submit', async function(e)
     this.reset();
     document.getElementById('f-date').value = today();
     document.querySelectorAll('#dist-pills .pill').forEach(p => p.classList.remove('on'));
+    setUnit('m');
   } catch(err) {
     toast(err.message, false);
   } finally {
