@@ -689,10 +689,16 @@ const DEMO_DATA = [
   { date:'2026-05-17', distance:3000, hr:130, effort:4, ts:'2026-05-17T07:20:00.000Z' },
 ];
 
+let authUnsubscribe = null;
+
 function activateDemo() {
   isDemo = true;
+  if (authUnsubscribe) { authUnsubscribe(); authUnsubscribe = null; }
+  db = null; uid = null;
   demoSessions = [...DEMO_DATA];
   document.getElementById('demo-banner').style.display = 'block';
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('loading-screen').style.display = 'none';
   boot(null);
 }
 
@@ -702,7 +708,7 @@ if (new URLSearchParams(window.location.search).has('demo')) {
   firebase.initializeApp(FB_CFG);
   fbAuth = firebase.auth();
   db     = firebase.firestore();
-  fbAuth.onAuthStateChanged(u => { if (isDemo) return; u ? boot(u) : showAuth(); });
+  authUnsubscribe = fbAuth.onAuthStateChanged(u => { if (isDemo) return; u ? boot(u) : showAuth(); });
 } else {
   boot(null);
 }
