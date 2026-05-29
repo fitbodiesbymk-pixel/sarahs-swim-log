@@ -702,7 +702,7 @@ if (new URLSearchParams(window.location.search).has('demo')) {
   firebase.initializeApp(FB_CFG);
   fbAuth = firebase.auth();
   db     = firebase.firestore();
-  fbAuth.onAuthStateChanged(u => u ? boot(u) : showAuth());
+  fbAuth.onAuthStateChanged(u => { if (isDemo) return; u ? boot(u) : showAuth(); });
 } else {
   boot(null);
 }
