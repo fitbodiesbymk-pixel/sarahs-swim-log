@@ -486,7 +486,7 @@
 <div id="app" style="display:none;">
 
   <div id="demo-banner" style="display:none;background:var(--navy);color:rgba(255,255,255,0.85);text-align:center;font-size:0.72rem;font-weight:600;padding:9px 16px;letter-spacing:0.05em;position:sticky;top:0;z-index:50;">
-    DEMO MODE — data won't be saved &nbsp;·&nbsp; <a id="exit-demo-link" href="?" style="color:#E0457B;text-decoration:none;">Exit Demo</a>
+    DEMO MODE — data won't be saved &nbsp;·&nbsp; <a id="exit-demo-link" href="https://fitbodiesbymk-pixel.github.io/builtbymk/" style="color:#E0457B;text-decoration:none;">Exit Demo</a>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -522,16 +522,6 @@
 
           <div class="field">
             <label>Swim Distance</label>
-            <div class="pills" id="dist-pills">
-              <button type="button" class="pill" data-m="500">500m</button>
-              <button type="button" class="pill" data-m="1000">1km</button>
-              <button type="button" class="pill" data-m="1500">1.5km</button>
-              <button type="button" class="pill" data-m="2000">2km</button>
-              <button type="button" class="pill" data-m="2500">2.5km</button>
-              <button type="button" class="pill" data-m="3000">3km</button>
-              <button type="button" class="pill" data-m="4000">4km</button>
-              <button type="button" class="pill" data-m="5000">5km</button>
-            </div>
             <div class="dist-row">
               <input type="text" id="f-dist" inputmode="decimal" placeholder="e.g. 825 or 1.5" />
               <div class="unit-toggle">
@@ -975,27 +965,6 @@ function parseDist(raw) {
   return distUnit === 'km' ? Math.round(num * 1000) : Math.round(num);
 }
 
-document.querySelectorAll('#dist-pills .pill').forEach(pill => {
-  pill.addEventListener('click', () => {
-    document.querySelectorAll('#dist-pills .pill').forEach(p => p.classList.remove('on'));
-    pill.classList.add('on');
-    const metres = parseInt(pill.dataset.m);
-    if (metres >= 1000) {
-      document.getElementById('f-dist').value = metres / 1000;
-      setUnit('km');
-    } else {
-      document.getElementById('f-dist').value = metres;
-      setUnit('m');
-    }
-  });
-});
-
-document.getElementById('f-dist').addEventListener('input', function() {
-  const metres = parseDist(this.value);
-  document.querySelectorAll('#dist-pills .pill').forEach(p => {
-    p.classList.toggle('on', metres !== null && parseInt(p.dataset.m) === metres);
-  });
-});
 
 document.getElementById('log-form').addEventListener('submit', async function(e) {
   e.preventDefault();
@@ -1023,7 +992,6 @@ document.getElementById('log-form').addEventListener('submit', async function(e)
     renderReport(generateReport({ date, distance: dist, hr, effort: eff }, all));
     this.reset();
     document.getElementById('f-date').value = today();
-    document.querySelectorAll('#dist-pills .pill').forEach(p => p.classList.remove('on'));
     setUnit('m');
   } catch(err) {
     toast(err.message, false);
