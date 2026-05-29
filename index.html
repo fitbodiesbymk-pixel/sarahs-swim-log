@@ -471,11 +471,23 @@
     </svg>
     Continue with Google
   </button>
+  <div style="display:flex;align-items:center;gap:12px;margin:18px 0 4px;width:100%;max-width:280px;">
+    <div style="flex:1;height:1px;background:var(--border);"></div>
+    <span style="font-size:0.72rem;color:var(--muted);font-weight:500;">or</span>
+    <div style="flex:1;height:1px;background:var(--border);"></div>
+  </div>
+  <button id="demo-btn" style="width:100%;max-width:280px;padding:15px;border:1.5px solid var(--border);border-radius:14px;background:transparent;font-family:'Inter',sans-serif;font-size:0.92rem;font-weight:600;color:var(--muted);cursor:pointer;transition:all 0.18s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+    Try Demo
+  </button>
   <p id="auth-err" style="color:var(--red);font-size:0.8rem;margin-top:14px;display:none;"></p>
 </div>
 
 <!-- ══ APP ══ -->
 <div id="app" style="display:none;">
+
+  <div id="demo-banner" style="display:none;background:var(--navy);color:rgba(255,255,255,0.85);text-align:center;font-size:0.72rem;font-weight:600;padding:9px 16px;letter-spacing:0.05em;position:sticky;top:0;z-index:50;">
+    DEMO MODE — data won't be saved &nbsp;·&nbsp; <a id="exit-demo-link" href="?" style="color:#E0457B;text-decoration:none;">Exit Demo</a>
+  </div>
 
   <div id="toast" class="toast"></div>
 
@@ -671,8 +683,32 @@ const FB_CFG = {
 
 const FB_ON = FB_CFG.apiKey !== "REPLACE_ME";
 let db = null, fbAuth = null, uid = null;
+let isDemo = false;
+let demoSessions = [];
 
-if (FB_ON) {
+const DEMO_DATA = [
+  { date:'2026-05-29', distance:1500, hr:142, effort:6, ts:'2026-05-29T07:30:00.000Z' },
+  { date:'2026-05-28', distance:2000, hr:138, effort:5, ts:'2026-05-28T07:15:00.000Z' },
+  { date:'2026-05-27', distance:1000, hr:158, effort:8, ts:'2026-05-27T07:45:00.000Z' },
+  { date:'2026-05-25', distance:1500, hr:144, effort:6, ts:'2026-05-25T07:20:00.000Z' },
+  { date:'2026-05-24', distance:2500, hr:134, effort:4, ts:'2026-05-24T07:30:00.000Z' },
+  { date:'2026-05-22', distance:1000, hr:162, effort:9, ts:'2026-05-22T07:40:00.000Z' },
+  { date:'2026-05-21', distance:1500, hr:146, effort:7, ts:'2026-05-21T07:25:00.000Z' },
+  { date:'2026-05-19', distance:2000, hr:140, effort:5, ts:'2026-05-19T07:30:00.000Z' },
+  { date:'2026-05-18', distance:1000, hr:154, effort:7, ts:'2026-05-18T07:35:00.000Z' },
+  { date:'2026-05-17', distance:3000, hr:130, effort:4, ts:'2026-05-17T07:20:00.000Z' },
+];
+
+function activateDemo() {
+  isDemo = true;
+  demoSessions = [...DEMO_DATA];
+  document.getElementById('demo-banner').style.display = 'block';
+  boot(null);
+}
+
+if (new URLSearchParams(window.location.search).has('demo')) {
+  activateDemo();
+} else if (FB_ON) {
   firebase.initializeApp(FB_CFG);
   fbAuth = firebase.auth();
   db     = firebase.firestore();
@@ -680,6 +716,8 @@ if (FB_ON) {
 } else {
   boot(null);
 }
+
+document.getElementById('demo-btn').addEventListener('click', activateDemo);
 
 // ── AUTH ───────────────────────────────────────
 function showAuth() {
@@ -712,6 +750,7 @@ function boot(user) {
 
 // ── DATA ───────────────────────────────────────
 async function getSessions() {
+  if (isDemo) return [...demoSessions];
   if (db && uid) {
     try {
       const snap = await db.collection('users').doc(uid)
@@ -723,6 +762,12 @@ async function getSessions() {
 }
 
 async function saveSession(s) {
+  if (isDemo) {
+    demoSessions = demoSessions.filter(x => x.date !== s.date);
+    demoSessions.push(s);
+    demoSessions.sort((a,b) => a.date > b.date ? 1 : -1);
+    return;
+  }
   if (db && uid) {
     await db.collection('users').doc(uid).collection('sessions').doc(s.date).set(s);
   } else {
@@ -735,6 +780,7 @@ async function saveSession(s) {
 }
 
 async function deleteSession(id, date) {
+  if (isDemo) { demoSessions = demoSessions.filter(x => x.date !== date); return; }
   if (db && uid) {
     await db.collection('users').doc(uid).collection('sessions').doc(date).delete();
   } else {
