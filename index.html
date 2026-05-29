@@ -322,16 +322,43 @@
     .hist-row {
       background: var(--white);
       border-radius: 16px;
-      padding: 18px 20px;
       box-shadow: 0 1px 8px rgba(11,24,41,0.06);
-      display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 10px;
+      overflow: hidden;
     }
+    .hist-row-header {
+      padding: 18px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .hist-row-header:active { background: rgba(0,0,0,0.02); }
+    .hist-chevron {
+      color: var(--border);
+      font-size: 1rem;
+      transition: transform 0.22s ease;
+      margin-left: 4px;
+      flex-shrink: 0;
+    }
+    .hist-row.open .hist-chevron { transform: rotate(180deg); color: var(--accent); }
+    @keyframes expandIn {
+      from { opacity:0; transform:translateY(-6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .hist-row-report {
+      display: none;
+      padding: 0 20px 16px;
+      border-top: 1px solid var(--border);
+      animation: expandIn 0.22s ease;
+    }
+    .hist-row.open .hist-row-report { display: block; }
     .del-btn {
       background: none; border: none;
       color: #CBD5E1; cursor: pointer;
       padding: 4px; border-radius: 6px;
       transition: color 0.18s;
+      flex-shrink: 0;
     }
     .del-btn:hover { color: var(--red); }
 
@@ -987,30 +1014,69 @@ async function renderHistory() {
   }
 
   const effLabel = ['','Very Easy','Easy','Light','Moderate','Challenging','Hard','Very Hard','Very Hard+','Maximal','All Out'];
+  const repIcons = { zone:'🏅', hr:'❤️', volume:'🌊', streak:'🔥', recovery:'💤' };
 
   el.innerHTML = filtered.map(s => `
-    <div class="hist-row">
-      <div>
-        <p style="font-size:0.88rem;font-weight:700;color:var(--navy);margin-bottom:4px;">${fmtDate(s.date)}</p>
-        <p style="font-size:0.78rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;">
-          ${s.distance ? `<span>${fmtDist(s.distance)}</span>` : ''}
-          ${s.hr       ? `<span>${s.hr} bpm</span>` : ''}
-          ${s.effort   ? `<span>RPE ${s.effort} — ${effLabel[s.effort]||''}</span>` : ''}
-        </p>
+    <div class="hist-row" data-date="${s.date}" data-distance="${s.distance||''}" data-hr="${s.hr||''}" data-effort="${s.effort||''}">
+      <div class="hist-row-header">
+        <div>
+          <p style="font-size:0.88rem;font-weight:700;color:var(--navy);margin-bottom:4px;">${fmtDate(s.date)}</p>
+          <p style="font-size:0.78rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;">
+            ${s.distance ? `<span>${fmtDist(s.distance)}</span>` : ''}
+            ${s.hr       ? `<span>${s.hr} bpm</span>` : ''}
+            ${s.effort   ? `<span>RPE ${s.effort} — ${effLabel[s.effort]||''}</span>` : ''}
+          </p>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="del-btn" data-id="${s._id||''}" data-date="${s.date}" title="Delete">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+          <span class="hist-chevron">▾</span>
+        </div>
       </div>
-      <button class="del-btn" data-id="${s._id||''}" data-date="${s.date}" title="Delete">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-        </svg>
-      </button>
+      <div class="hist-row-report"></div>
     </div>`).join('');
 
   document.querySelectorAll('.del-btn').forEach(btn => {
-    btn.addEventListener('click', async function() {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
       if (!confirm('Delete session for ' + fmtDate(this.dataset.date) + '?')) return;
       await deleteSession(this.dataset.id, this.dataset.date);
       renderHistory();
       toast('Deleted', false);
+    });
+  });
+
+  document.querySelectorAll('.hist-row-header').forEach(header => {
+    header.addEventListener('click', function(e) {
+      if (e.target.closest('.del-btn')) return;
+      const row       = this.closest('.hist-row');
+      const reportDiv = row.querySelector('.hist-row-report');
+      const isOpen    = row.classList.toggle('open');
+      if (isOpen && !reportDiv.dataset.rendered) {
+        const session = {
+          date:     row.dataset.date,
+          distance: row.dataset.distance ? parseInt(row.dataset.distance) : null,
+          hr:       row.dataset.hr       ? parseFloat(row.dataset.hr)     : null,
+          effort:   row.dataset.effort   ? parseInt(row.dataset.effort)   : null,
+        };
+        const sections = generateReport(session, all);
+        if (sections.length) {
+          reportDiv.innerHTML = sections.map(s => `
+            <div class="report-line">
+              <span class="report-icon">${repIcons[s.type]}</span>
+              <div class="report-text">
+                ${s.zone ? `<span class="report-zone-tag">${s.zone}</span><br>` : ''}
+                ${s.text}
+              </div>
+            </div>`).join('');
+        } else {
+          reportDiv.innerHTML = '<p style="font-size:0.82rem;color:var(--muted);padding:14px 0;">Add heart rate and effort level to see your cardiovascular report.</p>';
+        }
+        reportDiv.dataset.rendered = '1';
+      }
     });
   });
 }
