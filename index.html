@@ -190,6 +190,39 @@
     }
     .unit-btn:first-child { border-right: 1.5px solid var(--border); }
 
+    /* ── session report ── */
+    @keyframes reportIn {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    #report-card { margin-top: 16px; animation: reportIn 0.35s ease; }
+    .report-zone-tag {
+      display: inline-block;
+      background: rgba(224,69,123,0.12);
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 11px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+    }
+    .report-line {
+      font-size: 0.86rem;
+      line-height: 1.7;
+      color: var(--text);
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+    }
+    .report-line:first-child { padding-top: 4px; }
+    .report-line:last-child  { border-bottom: none; padding-bottom: 0; }
+    .report-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+    .report-text { flex: 1; }
+    .report-text strong { color: var(--navy); font-weight: 700; }
+
     /* ── save button ── */
     .btn-save {
       display: block;
@@ -496,6 +529,12 @@
         </form>
       </div>
 
+      <!-- Session Report -->
+      <div id="report-card" class="card" style="display:none;">
+        <p class="card-label">Session Report</p>
+        <div id="report-body"></div>
+      </div>
+
     </div><!-- /log -->
 
     <!-- ══ HISTORY PAGE ══ -->
@@ -741,6 +780,106 @@ document.querySelectorAll('.tab').forEach(btn => {
   });
 });
 
+// ── SESSION REPORT ─────────────────────────────
+function generateReport(session, allSessions) {
+  const { distance, hr, effort } = session;
+  const sections = [];
+
+  if (effort) {
+    let zone, benefit;
+    if (effort <= 2) {
+      zone = 'Zone 1 — Active Recovery';
+      benefit = 'Low-intensity work like this promotes circulation and aids muscle repair without adding cardiovascular stress. It trains your body to use fat as primary fuel and builds capillary density — a quiet but essential foundation for endurance.';
+    } else if (effort <= 4) {
+      zone = 'Zone 2 — Aerobic Base';
+      benefit = 'Zone 2 is where the deepest cardiovascular adaptations happen. Your heart\'s stroke volume (blood pumped per beat) increases, mitochondrial density grows in muscle cells, and oxygen delivery becomes more efficient. Consistent sessions here build the aerobic engine that underpins all other fitness gains.';
+    } else if (effort <= 6) {
+      zone = 'Zone 3 — Aerobic Development';
+      benefit = 'At this moderate-hard intensity your cardiac output is elevated enough to drive meaningful fitness gains. Your heart and lungs are working in a productive range — improving your ability to sustain effort and clear metabolic waste, both clear markers of a strengthening cardiovascular system.';
+    } else if (effort <= 8) {
+      zone = 'Zone 4 — Lactate Threshold';
+      benefit = 'Threshold sessions push your lactate threshold higher, meaning your cardiovascular system can sustain harder efforts before fatigue sets in. This intensity directly raises your VO₂max ceiling and is among the most effective stimuli for improving swim performance and heart health.';
+    } else {
+      zone = 'Zone 5 — VO₂max';
+      benefit = 'This was a maximal-effort session. High-intensity work like this triggers the strongest cardiovascular stress response, forcing the heart to adapt and raising the upper limit of your aerobic capacity (VO₂max). Highly effective — but requires 48+ hours of recovery before another hard effort.';
+    }
+    sections.push({ type: 'zone', zone, text: benefit });
+  }
+
+  if (hr) {
+    let hrText;
+    if (effort) {
+      const comparable = allSessions
+        .filter(s => s.effort === effort && s.hr && s.date !== session.date)
+        .slice(-4);
+      if (comparable.length >= 2) {
+        const avgPastHR = Math.round(comparable.reduce((a,s) => a + s.hr, 0) / comparable.length);
+        const diff = hr - avgPastHR;
+        if (diff <= -4) {
+          hrText = `Your heart rate of <strong>${hr} bpm</strong> is ${Math.abs(diff)} bpm lower than your recent average of ${avgPastHR} bpm at the same effort level. A lower HR at the same perceived exertion is a direct sign of improved cardiovascular efficiency — your heart is getting stronger.`;
+        } else if (diff >= 6) {
+          hrText = `Your heart rate of <strong>${hr} bpm</strong> is ${diff} bpm above your recent average of ${avgPastHR} bpm at this effort level. This is often normal — heat, dehydration, fatigue, or poor sleep all elevate heart rate temporarily.`;
+        }
+      }
+      if (!hrText) {
+        if      (hr < 120) hrText = `An average of <strong>${hr} bpm</strong> is a very low cardiovascular load — consistent with a recovery or easy aerobic session.`;
+        else if (hr < 140) hrText = `At <strong>${hr} bpm</strong> your heart was working in a solid aerobic zone, efficiently delivering oxygen to your muscles throughout the session.`;
+        else if (hr < 160) hrText = `<strong>${hr} bpm</strong> places this session in the aerobic-to-tempo range — your cardiovascular system was working hard and adapting positively to the demand.`;
+        else if (hr < 175) hrText = `A heart rate of <strong>${hr} bpm</strong> is in the threshold zone. Your cardiac output was near its sustainable maximum — a strong training stimulus for the heart.`;
+        else               hrText = `<strong>${hr} bpm</strong> is a high average, indicating near-maximal cardiovascular effort. Make sure to recover fully — adaptation happens during rest, not during the swim.`;
+      }
+    } else {
+      if      (hr < 120) hrText = `<strong>${hr} bpm</strong> average — a low, recovery-level heart rate.`;
+      else if (hr < 140) hrText = `<strong>${hr} bpm</strong> — solid aerobic zone. Your heart was delivering oxygen efficiently.`;
+      else if (hr < 160) hrText = `<strong>${hr} bpm</strong> — aerobic to tempo range. A meaningful cardiovascular stimulus.`;
+      else if (hr < 175) hrText = `<strong>${hr} bpm</strong> — threshold level. Strong cardiac output throughout the session.`;
+      else               hrText = `<strong>${hr} bpm</strong> — near-maximal effort. High cardiovascular stress; prioritise recovery today.`;
+    }
+    sections.push({ type: 'hr', text: hrText });
+  }
+
+  if (distance) {
+    let volText;
+    if      (distance < 500)  volText = `<strong>${fmtDist(distance)}</strong> — a short but purposeful session. Every metre of consistent swimming contributes to cardiovascular adaptation.`;
+    else if (distance < 1000) volText = `<strong>${fmtDist(distance)}</strong> builds a solid aerobic stimulus while keeping recovery demands manageable. A great training volume for sustainable progress.`;
+    else if (distance < 2000) volText = `<strong>${fmtDist(distance)}</strong> is a strong aerobic session. Sustained swimming at this volume elevates stroke volume and cardiac efficiency — both key markers of heart health.`;
+    else if (distance < 3500) volText = `<strong>${fmtDist(distance)}</strong> is excellent endurance volume. Sessions of this length are linked to lower resting heart rate, improved arterial flexibility, and long-term cardiovascular health.`;
+    else                      volText = `<strong>${fmtDist(distance)}</strong> is a high-volume session. The sustained cardiovascular demand drives adaptations in heart size, stroke volume, and blood vessel efficiency — hallmarks of an endurance athlete's heart.`;
+    sections.push({ type: 'volume', text: volText });
+  }
+
+  const streak = calcStreak(allSessions);
+  if (streak >= 3) {
+    sections.push({ type: 'streak', text: `<strong>${streak}-day streak.</strong> Consistency is the single most powerful driver of cardiovascular adaptation. Regular aerobic swimming progressively lowers resting heart rate, improves arterial flexibility, and significantly reduces cardiovascular disease risk over time.` });
+  }
+
+  if (effort >= 8) {
+    sections.push({ type: 'recovery', text: `<strong>Recovery tip:</strong> prioritise sleep and hydration in the next 24–48 hours. Cardiovascular adaptations from hard sessions happen during rest — not during the swim itself.` });
+  }
+
+  return sections;
+}
+
+function renderReport(sections) {
+  const icons = { zone:'🏅', hr:'❤️', volume:'🌊', streak:'🔥', recovery:'💤' };
+  const card  = document.getElementById('report-card');
+  const body  = document.getElementById('report-body');
+  if (!sections.length) { card.style.display = 'none'; return; }
+  body.innerHTML = sections.map(s => `
+    <div class="report-line">
+      <span class="report-icon">${icons[s.type]}</span>
+      <div class="report-text">
+        ${s.zone ? `<span class="report-zone-tag">${s.zone}</span><br>` : ''}
+        ${s.text}
+      </div>
+    </div>`).join('');
+  card.style.display = 'block';
+  card.style.animation = 'none';
+  void card.offsetWidth;
+  card.style.animation = '';
+  setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'nearest' }), 60);
+}
+
 // ── LOG FORM ───────────────────────────────────
 let distUnit = 'm';
 
@@ -808,6 +947,7 @@ document.getElementById('log-form').addEventListener('submit', async function(e)
     else              sp.style.display = 'none';
 
     toast('Session saved 🏊');
+    renderReport(generateReport({ date, distance: dist, hr, effort: eff }, all));
     this.reset();
     document.getElementById('f-date').value = today();
     document.querySelectorAll('#dist-pills .pill').forEach(p => p.classList.remove('on'));
