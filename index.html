@@ -711,9 +711,19 @@ document.getElementById('demo-btn').addEventListener('click', activateDemo);
 
 // ── AUTH ───────────────────────────────────────
 function showAuth() {
+  if (isDemo) return;
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+}
+
+function switchTab(page) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.tab[data-page="${page}"]`).classList.add('active');
+  document.getElementById('page-' + page).classList.add('active');
+  if (page === 'history') renderHistory();
+  if (page === 'stats')   renderStats();
 }
 
 document.getElementById('signin-btn').addEventListener('click', async () => {
@@ -990,6 +1000,7 @@ document.getElementById('log-form').addEventListener('submit', async function(e)
 
     toast('Session saved 🏊');
     renderReport(generateReport({ date, distance: dist, hr, effort: eff }, all));
+    if (isDemo) setTimeout(() => switchTab('history'), 2200);
     this.reset();
     document.getElementById('f-date').value = today();
     setUnit('m');
