@@ -617,6 +617,25 @@
         </div>
       </div>
 
+      <!-- Badges -->
+      <div style="margin-bottom:20px;">
+        <p style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;">Milestones</p>
+        <div style="display:flex;gap:10px;">
+          <div id="badge-10" style="flex:1;border-radius:14px;padding:14px 10px;text-align:center;border:2px solid #E5E7EB;background:#F9FAFB;opacity:.4;transition:all .2s;">
+            <div style="font-size:1.6rem;margin-bottom:4px;">🏅</div>
+            <p style="font-size:0.78rem;font-weight:700;color:#111;">10 Sessions</p>
+          </div>
+          <div id="badge-50" style="flex:1;border-radius:14px;padding:14px 10px;text-align:center;border:2px solid #E5E7EB;background:#F9FAFB;opacity:.4;transition:all .2s;">
+            <div style="font-size:1.6rem;margin-bottom:4px;">🥈</div>
+            <p style="font-size:0.78rem;font-weight:700;color:#111;">50 Sessions</p>
+          </div>
+          <div id="badge-100" style="flex:1;border-radius:14px;padding:14px 10px;text-align:center;border:2px solid #E5E7EB;background:#F9FAFB;opacity:.4;transition:all .2s;">
+            <div style="font-size:1.6rem;margin-bottom:4px;">🥇</div>
+            <p style="font-size:0.78rem;font-weight:700;color:#111;">100 Sessions</p>
+          </div>
+        </div>
+      </div>
+
       <div class="chart-card">
         <p class="chart-title">Distance per session</p>
         <canvas id="c-dist" height="130"></canvas>
@@ -1131,6 +1150,21 @@ async function renderStats() {
   const all = await getSessions();
   const { from, to } = periodRange(activePeriod);
   const filtered = all.filter(s => s.date >= from && s.date <= to);
+
+  // Badges — based on total sessions all time
+  [[10,'badge-10'],[50,'badge-50'],[100,'badge-100']].forEach(function([target, id]) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (all.length >= target) {
+      el.style.opacity = '1';
+      el.style.border = '2px solid #0EA5E9';
+      el.style.background = '#EFF6FF';
+    } else {
+      el.style.opacity = '.4';
+      el.style.border = '2px solid #E5E7EB';
+      el.style.background = '#F9FAFB';
+    }
+  });
 
   // Summary numbers
   document.getElementById('st-sessions').textContent = filtered.length || '—';
